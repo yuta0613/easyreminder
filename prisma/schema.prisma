@@ -53,6 +53,7 @@ model Product {
   purchases PurchaseHistory[]
   reminders Reminder[]
 
+  @@unique([householdId, name])
   @@map("products")
 }
 
@@ -69,6 +70,7 @@ model PurchaseHistory {
   product Product @relation(fields: [productId], references: [id])
   user    User    @relation(fields: [userId], references: [id])
 
+  @@unique([productId, userId, purchasedAt])
   @@map("purchase_histories")
 }
 
@@ -84,5 +86,6 @@ model Reminder {
   product Product @relation(fields: [productId], references: [id])
   user    User    @relation(fields: [userId], references: [id])
 
+  @@unique([productId, userId, reminderDate])
   @@map("reminders")
 } 

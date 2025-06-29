@@ -7,25 +7,58 @@ import { useAppStore, initializeSampleData } from '@/lib/stores/app-store'
 import { ocrService } from '@/lib/ocr'
 import { getDaysUntilEmpty, getStatusFromDaysLeft } from '@/lib/utils'
 
+interface ReminderData {
+  id: string
+  productName: string
+  daysLeft: number
+  status: 'ok' | 'warning' | 'urgent'
+  reminderDate: Date
+  productId: string
+}
+
 export default function HomePage() {
   const { products, reminders } = useAppStore()
   const [showCamera, setShowCamera] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const [processingMessage, setProcessingMessage] = useState('')
+  const [todayReminders, setTodayReminders] = useState<ReminderData[]>([])
+  const [isLoadingReminders, setIsLoadingReminders] = useState(true)
 
-  // サンプルデータを初期化
-  useEffect(() => {
-    if (products.length === 0) {
-      initializeSampleData()
+  // リマインダーを取得
+  const fetchReminders = async () => {
+    try {
+      setIsLoadingReminders(true)
+      const response = await fetch('/api/reminders')
+      if (response.ok) {
+        const data = await response.json()
+        setTodayReminders(data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch reminders:', error)
+    } finally {
+      setIsLoadingReminders(false)
     }
-  }, [products.length])
+  }
 
-  // 今日のリマインダーを計算（サンプルデータに基づく）
-  const todayReminders = [
-    { id: 1, name: '衣料用洗剤', daysLeft: 2, status: 'warning' as const },
-    { id: 2, name: '醤油', daysLeft: 0, status: 'urgent' as const },
-    { id: 3, name: '歯磨き粉', daysLeft: 5, status: 'ok' as const },
-  ]
+  // サンプルデータを初期化してリマインダーを取得
+  useEffect(() => {
+    const initializeData = async () => {
+      if (products.length === 0) {
+        initializeSampleData()
+      }
+      
+      // デモデータがない場合はシードデータを作成
+      try {
+        await fetch('/api/seed', { method: 'POST' })
+      } catch (error) {
+        console.error('Failed to seed data:', error)
+      }
+      
+      await fetchReminders()
+    }
+    
+    initializeData()
+  }, [products.length])
 
   const getStatusColor = (status: 'ok' | 'warning' | 'urgent') => {
     switch (status) {
@@ -80,9 +113,34 @@ export default function HomePage() {
     }
   }
 
-  const handleCompleteReminder = (id: number) => {
-    alert(`リマインダー ${id} を完了しました`)
-    // 実際の実装では、reminderのstatusを更新する
+  const handleCompleteReminder = async (id: string) => {
+    try {
+      setIsProcessing(true)
+      setProcessingMessage('リマインダーを完了中...')
+      
+      const response = await fetch(`/api/reminders/${id}/complete`, {
+        method: 'POST'
+      })
+      
+      if (response.ok) {
+        // リマインダーリストを再取得
+        await fetchReminders()
+        setProcessingMessage('リマインダーを完了しました')
+        setTimeout(() => {
+          setIsProcessing(false)
+          setProcessingMessage('')
+        }, 1000)
+      } else {
+        throw new Error('Failed to complete reminder')
+      }
+    } catch (error) {
+      console.error('Failed to complete reminder:', error)
+      setProcessingMessage('完了処理に失敗しました')
+      setTimeout(() => {
+        setIsProcessing(false)
+        setProcessingMessage('')
+      }, 2000)
+    }
   }
 
   return (
@@ -123,7 +181,18 @@ export default function HomePage() {
             今日のリマインダー
           </h2>
           
-          {todayReminders.length > 0 ? (
+          {isLoadingReminders ? (
+            <div className="text-center py-16 card-modern">
+              <div className="animate-spin h-8 w-8 mx-auto mb-4 border-3 rounded-full" 
+                   style={{ 
+                     borderColor: 'var(--color-primary)',
+                     borderTopColor: 'transparent'
+                   }}></div>
+              <p className="text-lg" style={{ color: 'var(--color-gray-500)' }}>
+                リマインダーを読み込み中...
+              </p>
+            </div>
+          ) : todayReminders.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {todayReminders.map((reminder) => {
                 const statusStyle = getStatusColor(reminder.status)
@@ -139,7 +208,7 @@ export default function HomePage() {
                     <div className="flex justify-between items-start mb-4">
                       <div>
                         <h3 className="font-semibold text-lg mb-2" style={{ color: statusStyle.textColor }}>
-                          {reminder.name}
+                          {reminder.productName}
                         </h3>
                         <p className="text-sm" style={{ color: 'var(--color-gray-600)' }}>
                           {reminder.daysLeft === 0 
@@ -196,7 +265,10 @@ export default function HomePage() {
             </button>
 
             {/* 商品管理 */}
-            <button className="card-modern p-8 text-center transition-all duration-300 hover:scale-105 group">
+            <button 
+              onClick={() => window.location.href = '/products'}
+              className="card-modern p-8 text-center transition-all duration-300 hover:scale-105 group"
+            >
               <div className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center"
                    style={{ backgroundColor: 'var(--color-secondary)', boxShadow: '0 8px 32px rgba(52, 199, 89, 0.3)' }}>
                 <Package className="h-8 w-8 text-white" />
@@ -290,8 +362,11 @@ export default function HomePage() {
               <Camera className="h-6 w-6 mb-1" />
               <span className="text-xs font-medium">撮影</span>
             </button>
-            <button className="flex flex-col items-center py-2 px-4 rounded-xl transition-all duration-200 hover:bg-gray-100"
-                    style={{ color: 'var(--color-gray-500)' }}>
+            <button 
+              onClick={() => window.location.href = '/products'}
+              className="flex flex-col items-center py-2 px-4 rounded-xl transition-all duration-200 hover:bg-gray-100"
+              style={{ color: 'var(--color-gray-500)' }}
+            >
               <Package className="h-6 w-6 mb-1" />
               <span className="text-xs font-medium">商品</span>
             </button>
