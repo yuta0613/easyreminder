@@ -1,0 +1,88 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String    @id @default(cuid())
+  email       String    @unique
+  name        String
+  householdId String?   @map("household_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  
+  household Household? @relation(fields: [householdId], references: [id])
+  purchases PurchaseHistory[]
+  reminders Reminder[]
+
+  @@map("users")
+}
+
+model Household {
+  id          String @id @default(cuid())
+  name        String
+  memberCount Int    @default(2) @map("member_count")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  users    User[]
+  products Product[]
+
+  @@map("households")
+}
+
+model Product {
+  id                      String @id @default(cuid())
+  householdId             String @map("household_id")
+  name                    String
+  category                String
+  defaultConsumptionDays  Int    @map("default_consumption_days")
+  currentConsumptionDays  Int    @map("current_consumption_days")
+  barcode                 String?
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+  
+  household Household @relation(fields: [householdId], references: [id])
+  purchases PurchaseHistory[]
+  reminders Reminder[]
+
+  @@map("products")
+}
+
+model PurchaseHistory {
+  id              String    @id @default(cuid())
+  productId       String    @map("product_id")
+  userId          String    @map("user_id")
+  price           Int?
+  quantity        Int       @default(1)
+  purchasedAt     DateTime  @map("purchased_at")
+  receiptImageUrl String?   @map("receipt_image_url")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  
+  product Product @relation(fields: [productId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@map("purchase_histories")
+}
+
+model Reminder {
+  id           String   @id @default(cuid())
+  productId    String   @map("product_id")
+  userId       String   @map("user_id")
+  reminderDate DateTime @map("reminder_date")
+  status       String   @default("pending") // pending, completed, dismissed
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  
+  product Product @relation(fields: [productId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@map("reminders")
+} 
