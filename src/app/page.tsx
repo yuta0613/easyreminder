@@ -29,9 +29,24 @@ export default function HomePage() {
 
   const getStatusColor = (status: 'ok' | 'warning' | 'urgent') => {
     switch (status) {
-      case 'urgent': return 'text-red-600 bg-red-50 border-red-200'
-      case 'warning': return 'text-yellow-600 bg-yellow-50 border-yellow-200'
-      default: return 'text-green-600 bg-green-50 border-green-200'
+      case 'urgent': 
+        return {
+          textColor: 'var(--color-danger)',
+          backgroundColor: 'rgba(255, 59, 48, 0.1)',
+          borderColor: 'rgba(255, 59, 48, 0.2)'
+        }
+      case 'warning': 
+        return {
+          textColor: 'var(--color-warning)',
+          backgroundColor: 'rgba(255, 149, 0, 0.1)',
+          borderColor: 'rgba(255, 149, 0, 0.2)'
+        }
+      default: 
+        return {
+          textColor: 'var(--color-secondary)',
+          backgroundColor: 'rgba(52, 199, 89, 0.1)',
+          borderColor: 'rgba(52, 199, 89, 0.2)'
+        }
     }
   }
 
@@ -71,115 +86,183 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--color-gray-50)' }}>
       {/* ヘッダー */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-4xl mx-auto px-4 py-4">
-          <h1 className="text-2xl font-bold text-gray-900">Easy Reminder</h1>
-          <p className="text-sm text-gray-600">日用品の買い忘れを防ぐスマートなリマインダー</p>
+      <header className="glass-effect sticky top-0 z-50">
+        <div className="max-w-6xl mx-auto px-6 py-6">
+          <div className="text-center">
+            <h1 className="text-4xl font-bold text-gradient-primary mb-2">Easy Reminder</h1>
+            <p className="text-lg" style={{ color: 'var(--color-gray-600)' }}>
+              日用品の買い忘れを防ぐスマートなリマインダー
+            </p>
+          </div>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-6 pb-20">
+      <main className="max-w-6xl mx-auto px-6 py-12 pb-32">
         {/* 処理中の表示 */}
         {isProcessing && (
-          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center space-x-3">
-              <div className="animate-spin h-5 w-5 border-2 border-blue-600 border-t-transparent rounded-full"></div>
-              <p className="text-blue-800">{processingMessage}</p>
+          <div className="mb-8 card-modern p-6">
+            <div className="flex items-center justify-center space-x-4">
+              <div className="animate-spin h-6 w-6 border-3 rounded-full" 
+                   style={{ 
+                     borderColor: 'var(--color-primary)',
+                     borderTopColor: 'transparent'
+                   }}></div>
+              <p className="text-lg font-medium" style={{ color: 'var(--color-primary)' }}>
+                {processingMessage}
+              </p>
             </div>
           </div>
         )}
 
         {/* 今日のリマインダー */}
-        <section className="mb-8">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-            <Bell className="mr-2 h-5 w-5" />
+        <section className="mb-16">
+          <h2 className="text-2xl font-bold mb-8 flex items-center" style={{ color: 'var(--color-gray-900)' }}>
+            <Bell className="mr-3 h-6 w-6" style={{ color: 'var(--color-primary)' }} />
             今日のリマインダー
           </h2>
           
           {todayReminders.length > 0 ? (
-            <div className="space-y-3">
-              {todayReminders.map((reminder) => (
-                <div
-                  key={reminder.id}
-                  className={`p-4 rounded-lg border ${getStatusColor(reminder.status)}`}
-                >
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h3 className="font-medium">{reminder.name}</h3>
-                      <p className="text-sm opacity-75">
-                        {reminder.daysLeft === 0 
-                          ? '今日切れる予定' 
-                          : `あと ${reminder.daysLeft} 日`}
-                      </p>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {todayReminders.map((reminder) => {
+                const statusStyle = getStatusColor(reminder.status)
+                return (
+                  <div
+                    key={reminder.id}
+                    className="card-modern p-6"
+                    style={{
+                      backgroundColor: statusStyle.backgroundColor,
+                      borderColor: statusStyle.borderColor
+                    }}
+                  >
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <h3 className="font-semibold text-lg mb-2" style={{ color: statusStyle.textColor }}>
+                          {reminder.name}
+                        </h3>
+                        <p className="text-sm" style={{ color: 'var(--color-gray-600)' }}>
+                          {reminder.daysLeft === 0 
+                            ? '今日切れる予定' 
+                            : `あと ${reminder.daysLeft} 日`}
+                        </p>
+                      </div>
                     </div>
                     <button 
                       onClick={() => handleCompleteReminder(reminder.id)}
-                      className="px-3 py-1 bg-white rounded-md border text-sm font-medium hover:bg-gray-50 transition-colors"
+                      className="w-full py-2 px-4 bg-white rounded-lg text-sm font-medium transition-all duration-200 hover:shadow-md"
+                      style={{ 
+                        color: statusStyle.textColor,
+                        border: `1px solid ${statusStyle.borderColor}`
+                      }}
                     >
                       完了
                     </button>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-500">
-              <Bell className="mx-auto h-12 w-12 opacity-50 mb-2" />
-              <p>今日のリマインダーはありません</p>
+            <div className="text-center py-16 card-modern">
+              <Bell className="mx-auto h-16 w-16 mb-4" style={{ color: 'var(--color-gray-400)' }} />
+              <p className="text-lg" style={{ color: 'var(--color-gray-500)' }}>
+                今日のリマインダーはありません
+              </p>
             </div>
           )}
         </section>
 
         {/* メインアクション */}
-        <section className="mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <section className="mb-16">
+          <h2 className="text-2xl font-bold mb-8" style={{ color: 'var(--color-gray-900)' }}>
+            主な機能
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* レシート撮影 */}
             <button 
               onClick={() => setShowCamera(true)}
-              className="p-6 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="card-modern p-8 text-center transition-all duration-300 hover:scale-105 group"
             >
-              <Camera className="h-8 w-8 mx-auto mb-2" />
-              <h3 className="font-semibold mb-1">レシートを撮影</h3>
-              <p className="text-sm opacity-90">買い物のレシートをスキャンして商品を登録</p>
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center"
+                   style={{ backgroundColor: 'var(--color-primary)', boxShadow: '0 8px 32px rgba(0, 122, 255, 0.3)' }}>
+                <Camera className="h-8 w-8 text-white" />
+              </div>
+              <h3 className="font-bold text-xl mb-3" style={{ color: 'var(--color-gray-900)' }}>
+                レシートを撮影
+              </h3>
+              <p className="text-base" style={{ color: 'var(--color-gray-600)' }}>
+                買い物のレシートをスキャンして商品を自動で登録
+              </p>
             </button>
 
             {/* 商品管理 */}
-            <button className="p-6 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
-              <Package className="h-8 w-8 mx-auto mb-2" />
-              <h3 className="font-semibold mb-1">商品を管理</h3>
-              <p className="text-sm opacity-90">登録済み商品の確認・編集</p>
+            <button className="card-modern p-8 text-center transition-all duration-300 hover:scale-105 group">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center"
+                   style={{ backgroundColor: 'var(--color-secondary)', boxShadow: '0 8px 32px rgba(52, 199, 89, 0.3)' }}>
+                <Package className="h-8 w-8 text-white" />
+              </div>
+              <h3 className="font-bold text-xl mb-3" style={{ color: 'var(--color-gray-900)' }}>
+                商品を管理
+              </h3>
+              <p className="text-base" style={{ color: 'var(--color-gray-600)' }}>
+                登録済み商品の確認・編集・削除
+              </p>
             </button>
           </div>
         </section>
 
         {/* 最近の購入履歴 */}
         <section>
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">最近の購入</h2>
-          <div className="bg-white rounded-lg border">
-            <div className="p-4 border-b">
+          <h2 className="text-2xl font-bold mb-8" style={{ color: 'var(--color-gray-900)' }}>
+            最近の購入
+          </h2>
+          <div className="card-modern overflow-hidden">
+            <div className="p-6 border-b border-gray-100">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="font-medium">ドラッグストアでの買い物</h3>
-                  <p className="text-sm text-gray-600">2024年1月15日</p>
+                  <h3 className="font-semibold text-lg" style={{ color: 'var(--color-gray-900)' }}>
+                    ドラッグストアでの買い物
+                  </h3>
+                  <p className="text-sm mt-1" style={{ color: 'var(--color-gray-600)' }}>
+                    2024年1月15日
+                  </p>
                 </div>
-                <span className="text-sm text-gray-500">3商品</span>
+                <div className="text-right">
+                  <span className="text-sm font-medium px-3 py-1 rounded-full"
+                        style={{ 
+                          backgroundColor: 'var(--color-gray-100)',
+                          color: 'var(--color-gray-700)'
+                        }}>
+                    3商品
+                  </span>
+                </div>
               </div>
             </div>
-            <div className="p-4">
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>アタック洗剤</span>
-                  <span className="text-gray-600">¥298</span>
+            <div className="p-6">
+              <div className="space-y-4">
+                <div className="flex justify-between items-center py-2 border-b border-gray-50">
+                  <span className="font-medium" style={{ color: 'var(--color-gray-900)' }}>
+                    アタック洗剤
+                  </span>
+                  <span className="font-semibold" style={{ color: 'var(--color-gray-700)' }}>
+                    ¥298
+                  </span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span>キッコーマン醤油</span>
-                  <span className="text-gray-600">¥158</span>
+                <div className="flex justify-between items-center py-2 border-b border-gray-50">
+                  <span className="font-medium" style={{ color: 'var(--color-gray-900)' }}>
+                    キッコーマン醤油
+                  </span>
+                  <span className="font-semibold" style={{ color: 'var(--color-gray-700)' }}>
+                    ¥158
+                  </span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span>歯磨き粉</span>
-                  <span className="text-gray-600">¥248</span>
+                <div className="flex justify-between items-center py-2">
+                  <span className="font-medium" style={{ color: 'var(--color-gray-900)' }}>
+                    歯磨き粉
+                  </span>
+                  <span className="font-semibold" style={{ color: 'var(--color-gray-700)' }}>
+                    ¥248
+                  </span>
                 </div>
               </div>
             </div>
@@ -188,27 +271,34 @@ export default function HomePage() {
       </main>
 
       {/* ボトムナビゲーション */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t">
-        <div className="max-w-4xl mx-auto px-4">
-          <div className="flex justify-around py-2">
-            <button className="flex flex-col items-center py-2 px-3 text-blue-600">
-              <Bell className="h-6 w-6" />
-              <span className="text-xs mt-1">ホーム</span>
+      <nav className="fixed bottom-0 left-0 right-0 glass-effect border-t border-gray-200">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="flex justify-around py-4">
+            <button className="flex flex-col items-center py-2 px-4 rounded-xl transition-all duration-200"
+                    style={{ 
+                      backgroundColor: 'rgba(0, 122, 255, 0.1)',
+                      color: 'var(--color-primary)'
+                    }}>
+              <Bell className="h-6 w-6 mb-1" />
+              <span className="text-xs font-medium">ホーム</span>
             </button>
             <button 
               onClick={() => setShowCamera(true)}
-              className="flex flex-col items-center py-2 px-3 text-gray-400 hover:text-blue-600"
+              className="flex flex-col items-center py-2 px-4 rounded-xl transition-all duration-200 hover:bg-gray-100"
+              style={{ color: 'var(--color-gray-500)' }}
             >
-              <Camera className="h-6 w-6" />
-              <span className="text-xs mt-1">撮影</span>
+              <Camera className="h-6 w-6 mb-1" />
+              <span className="text-xs font-medium">撮影</span>
             </button>
-            <button className="flex flex-col items-center py-2 px-3 text-gray-400">
-              <Package className="h-6 w-6" />
-              <span className="text-xs mt-1">商品</span>
+            <button className="flex flex-col items-center py-2 px-4 rounded-xl transition-all duration-200 hover:bg-gray-100"
+                    style={{ color: 'var(--color-gray-500)' }}>
+              <Package className="h-6 w-6 mb-1" />
+              <span className="text-xs font-medium">商品</span>
             </button>
-            <button className="flex flex-col items-center py-2 px-3 text-gray-400">
-              <Settings className="h-6 w-6" />
-              <span className="text-xs mt-1">設定</span>
+            <button className="flex flex-col items-center py-2 px-4 rounded-xl transition-all duration-200 hover:bg-gray-100"
+                    style={{ color: 'var(--color-gray-500)' }}>
+              <Settings className="h-6 w-6 mb-1" />
+              <span className="text-xs font-medium">設定</span>
             </button>
           </div>
         </div>
