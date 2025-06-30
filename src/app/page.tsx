@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { Camera, Package, Bell, Settings } from 'lucide-react'
 import { CameraCapture } from '@/components/camera/CameraCapture'
+import { OCRResultModal } from '@/components/ocr/OCRResultModal'
+import { PurchaseHistorySection } from '@/components/purchase/PurchaseHistorySection'
 import { useAppStore, initializeSampleData } from '@/lib/stores/app-store'
 import { ocrService } from '@/lib/ocr'
 import { getDaysUntilEmpty, getStatusFromDaysLeft } from '@/lib/utils'
@@ -23,6 +25,9 @@ export default function HomePage() {
   const [processingMessage, setProcessingMessage] = useState('')
   const [todayReminders, setTodayReminders] = useState<ReminderData[]>([])
   const [isLoadingReminders, setIsLoadingReminders] = useState(true)
+  const [ocrResult, setOcrResult] = useState<any>(null)
+  const [saveResult, setSaveResult] = useState<any>(null)
+  const [showOCRResult, setShowOCRResult] = useState(false)
 
   // リマインダーを取得
   const fetchReminders = async () => {
@@ -88,19 +93,37 @@ export default function HomePage() {
     setProcessingMessage('レシートを解析中...')
     
     try {
-      // OCR処理を実行
-      const result = await ocrService.processReceipt(imageData)
+      // OCR処理とデータ保存を実行
+      const response = await fetch('/api/ocr/process', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ imageData })
+      })
       
-      setProcessingMessage(`${result.totalItems}個の商品を検出しました`)
+      if (!response.ok) {
+        throw new Error('OCR処理に失敗しました')
+      }
       
-      // OCR結果をストアに保存
-      useAppStore.getState().setOCRResult(result)
+      const result = await response.json()
+      
+      setProcessingMessage(`${result.saveResult.savedProducts}個の商品を保存しました`)
+      
+      // OCR結果をストアに保存（後方互換性のため）
+      useAppStore.getState().setOCRResult(result.ocrResult)
+      
+      // 結果を状態に保存
+      setOcrResult(result.ocrResult)
+      setSaveResult(result.saveResult)
       
       setTimeout(() => {
         setIsProcessing(false)
         setProcessingMessage('')
-        // 商品管理画面に遷移（将来の実装）
-        alert(`OCR完了！${result.totalItems}個の商品が検出されました。`)
+        setShowCamera(false)
+        setShowOCRResult(true)
+        // リマインダーを再取得
+        fetchReminders()
       }, 1000)
       
     } catch (error) {
@@ -211,9 +234,11 @@ export default function HomePage() {
                           {reminder.productName}
                         </h3>
                         <p className="text-sm" style={{ color: 'var(--color-gray-600)' }}>
-                          {reminder.daysLeft === 0 
-                            ? '今日切れる予定' 
-                            : `あと ${reminder.daysLeft} 日`}
+                          {reminder.status === 'urgent' && reminder.daysLeft > 0 
+                            ? `${reminder.daysLeft}日経過` 
+                            : reminder.daysLeft === 0 
+                              ? '今日切れる予定' 
+                              : `あと ${reminder.daysLeft} 日`}
                         </p>
                       </div>
                     </div>
@@ -284,62 +309,7 @@ export default function HomePage() {
         </section>
 
         {/* 最近の購入履歴 */}
-        <section>
-          <h2 className="text-2xl font-bold mb-8" style={{ color: 'var(--color-gray-900)' }}>
-            最近の購入
-          </h2>
-          <div className="card-modern overflow-hidden">
-            <div className="p-6 border-b border-gray-100">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h3 className="font-semibold text-lg" style={{ color: 'var(--color-gray-900)' }}>
-                    ドラッグストアでの買い物
-                  </h3>
-                  <p className="text-sm mt-1" style={{ color: 'var(--color-gray-600)' }}>
-                    2024年1月15日
-                  </p>
-                </div>
-                <div className="text-right">
-                  <span className="text-sm font-medium px-3 py-1 rounded-full"
-                        style={{ 
-                          backgroundColor: 'var(--color-gray-100)',
-                          color: 'var(--color-gray-700)'
-                        }}>
-                    3商品
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                <div className="flex justify-between items-center py-2 border-b border-gray-50">
-                  <span className="font-medium" style={{ color: 'var(--color-gray-900)' }}>
-                    アタック洗剤
-                  </span>
-                  <span className="font-semibold" style={{ color: 'var(--color-gray-700)' }}>
-                    ¥298
-                  </span>
-                </div>
-                <div className="flex justify-between items-center py-2 border-b border-gray-50">
-                  <span className="font-medium" style={{ color: 'var(--color-gray-900)' }}>
-                    キッコーマン醤油
-                  </span>
-                  <span className="font-semibold" style={{ color: 'var(--color-gray-700)' }}>
-                    ¥158
-                  </span>
-                </div>
-                <div className="flex justify-between items-center py-2">
-                  <span className="font-medium" style={{ color: 'var(--color-gray-900)' }}>
-                    歯磨き粉
-                  </span>
-                  <span className="font-semibold" style={{ color: 'var(--color-gray-700)' }}>
-                    ¥248
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+        <PurchaseHistorySection />
       </main>
 
       {/* ボトムナビゲーション */}
@@ -384,6 +354,16 @@ export default function HomePage() {
         <CameraCapture
           onCapture={handleCameraCapture}
           onClose={() => setShowCamera(false)}
+        />
+      )}
+
+      {/* OCR結果モーダル */}
+      {showOCRResult && ocrResult && saveResult && (
+        <OCRResultModal
+          ocrResult={ocrResult}
+          saveResult={saveResult}
+          onClose={() => setShowOCRResult(false)}
+          onSave={() => window.location.href = '/products'}
         />
       )}
     </div>

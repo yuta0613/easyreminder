@@ -141,3 +141,49 @@ export const DEFAULT_CONSUMPTION_DAYS = {
   'トイレタリー': 90,
   'その他日用品': 30
 }
+
+/**
+ * 購入履歴から消費ペースを学習して更新
+ */
+export async function updateConsumptionPace(productId: string): Promise<void> {
+  // 過去の購入履歴を取得（最新3件）
+  const purchases = await prisma.purchaseHistory.findMany({
+    where: { productId },
+    orderBy: { purchasedAt: 'desc' },
+    take: 3
+  })
+
+  if (purchases.length < 2) {
+    // 購入履歴が2件未満の場合は学習できない
+    return
+  }
+
+  // 購入間隔を計算
+  const intervals: number[] = []
+  for (let i = 0; i < purchases.length - 1; i++) {
+    const current = purchases[i].purchasedAt
+    const previous = purchases[i + 1].purchasedAt
+    const daysDiff = Math.floor((current.getTime() - previous.getTime()) / (1000 * 60 * 60 * 24))
+    intervals.push(daysDiff)
+  }
+
+  // 平均購入間隔を計算
+  const avgInterval = Math.floor(intervals.reduce((sum, interval) => sum + interval, 0) / intervals.length)
+  
+  if (avgInterval > 0) {
+    // 現在の消費ペースを学習結果で更新
+    // 既存の値と学習結果の加重平均を取る（学習結果の重みを0.7とする）
+    const product = await prisma.product.findUnique({
+      where: { id: productId }
+    })
+    
+    if (product) {
+      const newConsumptionDays = Math.floor(product.currentConsumptionDays * 0.3 + avgInterval * 0.7)
+      
+      await prisma.product.update({
+        where: { id: productId },
+        data: { currentConsumptionDays: newConsumptionDays }
+      })
+    }
+  }
+}

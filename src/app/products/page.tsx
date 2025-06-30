@@ -322,6 +322,27 @@ export default function ProductsPage() {
                   min="1"
                   required
                 />
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {[7, 14, 30, 60, 90, 180].map(days => (
+                    <button
+                      key={days}
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, currentConsumptionDays: days }))}
+                      className="px-3 py-1 text-xs rounded-full border hover:bg-gray-50 transition-colors"
+                      style={{ color: 'var(--color-gray-600)' }}
+                    >
+                      {days}日
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs mt-1" style={{ color: 'var(--color-gray-500)' }}>
+                  デフォルト: {formData.defaultConsumptionDays}日
+                  {editingProduct && (
+                    <span className="ml-2">
+                      （購入履歴から自動調整されます）
+                    </span>
+                  )}
+                </p>
               </div>
 
               <div className="flex space-x-3 pt-4">

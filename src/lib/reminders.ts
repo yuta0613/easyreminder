@@ -11,15 +11,22 @@ export interface ReminderData {
 
 export async function getTodayReminders(userId: string): Promise<ReminderData[]> {
   const today = new Date()
-  const threeDaysFromNow = new Date()
+  today.setHours(0, 0, 0, 0)
+  
+  const threeDaysAgo = new Date(today)
+  threeDaysAgo.setDate(today.getDate() - 3)
+  
+  const threeDaysFromNow = new Date(today)
   threeDaysFromNow.setDate(today.getDate() + 3)
 
+  // 期限後、当日、3日前のリマインダーを取得
   const reminders = await prisma.reminder.findMany({
     where: {
       userId,
       status: 'pending',
       reminderDate: {
-        lte: threeDaysFromNow
+        gte: threeDaysAgo,  // 3日前から
+        lte: threeDaysFromNow  // 3日後まで
       }
     },
     include: {
@@ -31,13 +38,18 @@ export async function getTodayReminders(userId: string): Promise<ReminderData[]>
   })
 
   return reminders.map(reminder => {
-    const daysLeft = Math.ceil((reminder.reminderDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+    const reminderDateOnly = new Date(reminder.reminderDate)
+    reminderDateOnly.setHours(0, 0, 0, 0)
+    
+    const daysLeft = Math.ceil((reminderDateOnly.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
     
     let status: 'ok' | 'warning' | 'urgent'
-    if (daysLeft <= 0) {
-      status = 'urgent'
-    } else if (daysLeft <= 2) {
-      status = 'warning'
+    if (daysLeft < 0) {
+      status = 'urgent'  // 期限後
+    } else if (daysLeft === 0) {
+      status = 'urgent'  // 当日
+    } else if (daysLeft <= 3) {
+      status = 'warning'  // 3日前
     } else {
       status = 'ok'
     }
@@ -45,7 +57,7 @@ export async function getTodayReminders(userId: string): Promise<ReminderData[]>
     return {
       id: reminder.id,
       productName: reminder.product.name,
-      daysLeft: Math.max(0, daysLeft),
+      daysLeft: Math.abs(daysLeft),
       status,
       reminderDate: reminder.reminderDate,
       productId: reminder.productId
